@@ -1,7 +1,40 @@
 <template>
   <div>
-    <h1>Utilisateurs</h1>
+    <h1>Warhammer Forbidden</h1>
     <ul>
+      <div class="tableContainer">
+        <div class="tableHeader">
+          <p>id</p>
+          <p>Name</p>
+          <p>Price</p>
+          <p>Supply</p>
+        </div>
+
+        <!-- Lien vers la page de détail du token -->
+        <ul>
+          <li v-for="token in tokens" :key="token.id">
+            <div class="tokenRow">
+              <p>{{ token.id }}</p>
+              <RouterLink 
+  :to="{ 
+    name: 'tokenDetail', 
+    params: { 
+      id: token.id, 
+      name: token.name, 
+      supply: token.supply, 
+      price: token.price 
+    } 
+  }"
+>
+  {{ token.name }}
+</RouterLink>
+              <p>{{ token.price }}</p>
+              <p>{{ token.supply }}</p>
+            </div>
+          </li>
+        </ul>
+</div>
+
       <li v-for="user in users" :key="user.id">
         {{ user.name }} 
         {{ user.age }}
@@ -25,12 +58,15 @@ export default {
   data() {
     return {
       users: [],
+      tokens:[],
       newUserName: '',
       newAge: null,
     };
   },
   mounted() {
+    this.fetchTokens();
     this.fetchUsers();
+    
   },
   methods: {
     fetchUsers() {
@@ -81,6 +117,65 @@ export default {
         });
       }
     },
+
+
+    fetchTokens() {
+      fetch("http://localhost:8080/tokens")
+        .then((response) => response.json())
+        .then((data) => {
+          this.tokens = data;
+          console.log(data)
+        });
+    },
   },
 };
 </script>
+
+
+<style>
+
+.tableContainer {
+  width: 100%;
+  max-width: 600px; /* Largeur maximale pour limiter la taille */
+  margin: auto;
+}
+
+.tableHeader, .tokenRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  font-weight: bold;
+  background-color: #f1f1f1;
+  border-bottom: 2px solid #ddd;
+}
+
+.tableHeader p {
+  flex: 1;
+  text-align: left;
+}
+
+.tokenRow {
+  background-color: #ffffff;
+  font-weight: normal;
+}
+
+.tokenRow p {
+  flex: 1;
+  text-align: left;
+  margin: 0;
+}
+
+li {
+  list-style-type: none;
+}
+
+ul {
+  padding: 0;
+  margin: 0;
+}
+
+li:not(:last-child) .tokenRow {
+  border-bottom: 1px solid #ddd;
+}
+
+</style>

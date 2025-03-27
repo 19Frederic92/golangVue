@@ -1,17 +1,17 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import Users from './components/Users.vue';
+// Aucun import de `Users.vue` ici pour laisser `RouterView` gérer l'affichage des pages.
 </script>
 
 <template>
   <div>
+    <!-- Logo ou autre contenu global -->
     <a href="https://vitejs.dev" target="_blank">
       <img src="/vite.svg" class="logo" alt="Vite logo" />
     </a>
-    <Users />
     
+    <!-- RouterView pour afficher le contenu des routes -->
+    <RouterView />
   </div>
-  
 </template>
 
 <style scoped>

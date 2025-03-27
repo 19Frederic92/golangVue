@@ -5,10 +5,13 @@ import (
     "fmt"
     "log"
     "net/http"
+    "database/sql"
+    "strconv"
 
     "github.com/gin-gonic/gin"
     "github.com/jackc/pgx/v4"
     "my_project/backend/config"
+    "my_project/backend/metier"
 )
 
 var dbConn *pgx.Conn
@@ -31,6 +34,7 @@ func connectDB() {
 }
 
 // Route pour récupérer des données
+
 func getUsers(c *gin.Context) {
 	rows, err := dbConn.Query(context.Background(), "SELECT id, name,age FROM users")
 	if err != nil {
@@ -53,6 +57,133 @@ func getUsers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, users)
 }
+
+
+func getTokens(c *gin.Context) {
+	rows, err := dbConn.Query(context.Background(), "SELECT id, name,price,supply FROM token")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch token"})
+		return
+	}
+	defer rows.Close()
+
+	var tokens []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name string
+        var price float64
+		var supply float64
+		if err := rows.Scan(&id, &name, &price,&supply); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan row"})
+			return
+		}
+		tokens = append(tokens, map[string]interface{}{"id": id, "name": name, "price":price, "supply":supply})
+	}
+
+	c.JSON(http.StatusOK, tokens)
+}
+
+func getOneToken(c *gin.Context) {
+    idStr := c.Param("id")
+    id, err := strconv.Atoi(idStr) // Convertir l'ID en entier
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token ID"})
+        return
+    }
+
+    log.Printf("Fetching token with ID: %d", id)
+
+    // Préparer la structure du token
+    var token struct {
+        ID     int     `json:"id"`
+        Name   string  `json:"name"`
+        Price  float64 `json:"price"`
+        Supply float64 `json:"supply"`
+    }
+
+    // Exécuter la requête pour récupérer le token
+    err = dbConn.QueryRow(context.Background(), "SELECT id, name, price, supply FROM tokens WHERE id=$1", id).Scan(&token.ID, &token.Name, &token.Price, &token.Supply)
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            log.Printf("No token found for ID: %d", id)
+            c.JSON(http.StatusNotFound, gin.H{"error": "Token not found"})
+            return
+        }
+        log.Printf("Error fetching token: %v", err) // Log l'erreur exacte
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch one token"})
+        return
+    }
+
+    // Retourner le token en format JSON
+    c.JSON(http.StatusOK, token)
+}
+
+
+
+//Pour être exporté en go la fonction doit commencer par une majsucule
+/*
+func GetEntite(c *gin.Context) {
+	rows, err := dbConn.Query(context.Background(), "SELECT id, name, image FROM entite")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch entite"})
+		return
+	}
+	defer rows.Close()
+
+	var entite []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name string
+		var image string
+
+		if err := rows.Scan(&id, &name, &image); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan row"})
+			return
+		}
+		entite = append(entite, map[string]interface{}{"id": id, "name": name, "image": image})
+	}
+
+	c.JSON(http.StatusOK, entite)
+}
+
+
+func GetOneEntite(c *gin.Context) {
+    idStr := c.Param("id")
+    id, err := strconv.Atoi(idStr) // Convertir l'ID en entier
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token entite"})
+        return
+    }
+
+    log.Printf("Fetching token with ID: %d", id)
+
+    // Préparer la structure du token
+    var entite struct {
+        ID     int     `json:"id"`
+        Name   string  `json:"name"`
+        Image  string  `json:"image"`
+      
+    }
+
+    // Exécuter la requête pour récupérer le token
+    err = dbConn.QueryRow(context.Background(), "SELECT id, name, image FROM entite WHERE id=$1", id).Scan(&entite.ID, &entite.Name, &entite.Image)
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            log.Printf("No entite found for ID: %d", id)
+            c.JSON(http.StatusNotFound, gin.H{"error": "Entité not found"})
+            return
+        }
+        log.Printf("Error fetching entite: %v", err) // Log l'erreur exacte
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch one entite"})
+        return
+    }
+
+    // Retourner l'entite' en format JSON
+    c.JSON(http.StatusOK, entite)
+}
+*/
 
 // Route pour ajouter un nouvel utilisateur
 func addUser(c *gin.Context) {
@@ -109,11 +240,17 @@ func deleteUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
-
 func main() {
     // Connexion à PostgreSQL
-    connectDB()
-    defer dbConn.Close(context.Background())
+    metier.ConnectDB()
+
+    // Vérifiez que la connexion est bien initialisée
+    if metier.DBConn() == nil {
+        log.Fatal("Database connection failed to initialize")
+    }
+
+    // Fermeture de la connexion à la base de données lorsque le programme se termine
+    defer metier.DBConn().Close(context.Background())
 
     // Initialisation du routeur Gin
     r := gin.Default()
@@ -137,6 +274,13 @@ func main() {
 
     // Routes
     r.GET("/users", getUsers)
+    r.GET("/tokens",getTokens)
+    //r.GET("/tokens/:id", getOneToken)
+   r.GET("/entites", metier.GetEntite)
+   r.GET("/entites/:id", metier.GetOneEntite)
+ // r.GET("/entites", GetEntite)
+    //r.GET("/entites/:id", GetOneEntite)
+    
     r.POST("/users", addUser)
     r.PUT("/users/:id", updateUser)
     r.DELETE("/users/:id", deleteUser)
